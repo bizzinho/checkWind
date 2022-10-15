@@ -2,4 +2,4 @@
 Contributors
 ============
 
-* Dave Ochsenbein <david.ochsenbein@novartis.com>
+* Dave Ochsenbein
