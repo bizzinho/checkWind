@@ -21,6 +21,9 @@ GURU_INFO = {
     "Temperature [C]": "TMP",
     "Precipitation [mm/h]": "APCP1s",
 }
+
+NUMERIC_INFO = ["WINDSPD", "GUST", "TMP", "APCP1s", "Wind direction (angle)"]
+
 GURU_MODELS = (
     "WG",
     "GFS-13",
@@ -39,10 +42,13 @@ GURU_LOCATIONS = {"Zurich": 57016, "Costa Nova": 501145}
 # TODO:
 # extract actuals (historic?)
 # check that model is in GURU models; error handling if page not fully loaded yet
+# plot comparison of different models
+# query actual values from meteoswiss
+# headless
 
 
 class WindInfo:
-    def __init__(self, location="Zurich"):
+    def __init__(self, location="Zurich", headless=True):
 
         if location in GURU_LOCATIONS.keys():
             self.location = location
@@ -53,11 +59,15 @@ class WindInfo:
             driver = webdriver.Edge()
         except WebDriverException:
             self._pathSetup()
+            # if headless:
+            #     opt = webdriver.
+            #     opt.add_argument("--headless")
             driver = webdriver.Edge()
         driver.implicitly_wait(10)
 
         self.driver = driver
-        self.soup = None
+        self.forecast = dict()
+        self.soup = dict()
 
     def _pathSetup(self):
         if len(list(pathlib.Path.cwd().joinpath("driver").glob("*WebDriver*"))) == 1:
@@ -70,7 +80,8 @@ class WindInfo:
     # TODO: have dictionary of favorite locations so can use name only
     def _getSoup(self):
 
-        id = GURU_LOCATIONS[self.location]
+        location = self.location
+        id = GURU_LOCATIONS[location]
 
         url = GURU_URI + str(id)
         self.driver.get(url)
@@ -78,10 +89,13 @@ class WindInfo:
         element_present = EC.presence_of_element_located((By.ID, "tabid_0_0_dates"))
         WebDriverWait(self.driver, 20).until(element_present)
 
-        self.soup = dict(soup=bs(self.driver.page_source), location=self.location)
+        self.soup = {location: bs(self.driver.page_source)}
 
     def _getTabId(self, model):
-        legends = self.soup["soup"].find_all("div", {"class": "nadlegend"})
+        if self.location not in self.soup.keys():
+            self._getSoup()
+
+        legends = self.soup[self.location].find_all("div", {"class": "nadlegend"})
 
         legendIndex = [
             i for i, leg in enumerate(legends) if bool(re.search(model, leg.text))
@@ -91,7 +105,10 @@ class WindInfo:
 
     def _parseSoup(self, model="WG"):
 
-        soup = self.soup["soup"]
+        if self.location not in self.soup.keys():
+            self._getSoup()
+
+        soup = self.soup[self.location]
         tabid = self._getTabId(model)
 
         dates = soup.find_all("tr", id=f"{tabid}_0_dates")[0]
@@ -127,9 +144,11 @@ class WindInfo:
                     for prop in soup.find("tr", id=f"{tabid}_0_{info}")
                 ]
 
+                myData["SMER"] = directions
+
                 descriptions, angles = zip(
                     *[
-                        re.sub(r"(\w{1,3}) \((\d{1,3})[.].*", r"\1 \2", d).split()
+                        re.sub(r"(\w{1,3}) \((\d{1,3})[.]?.*", r"\1 \2", d).split()
                         for d in directions
                     ]
                 )
@@ -138,8 +157,11 @@ class WindInfo:
                 myData["Wind direction (angle)"] = angles
 
         # TODO: formatting of timestamp col and col descriptions?
-        df = pd.DataFrame(myData).rename(
-            columns=dict(zip(GURU_INFO.values(), GURU_INFO.keys()))
-        )
+        df = pd.DataFrame(myData)
 
-        return df
+        df[NUMERIC_INFO] = (
+            df[NUMERIC_INFO].apply(pd.to_numeric, errors="coerce").fillna(0)
+        )
+        df = df.rename(columns=dict(zip(GURU_INFO.values(), GURU_INFO.keys())))
+
+        self.forecast[self.location] = df
