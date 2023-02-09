@@ -8,6 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import pandas as pd
 from datetime import datetime as dt
+from collections import defaultdict
 import pathlib
 import re
 
@@ -37,11 +38,10 @@ GURU_MODELS = (
     "ICON-13",
     "GDPS-15",
 )
-GURU_LOCATIONS = {"Zurich": 57016, "Costa Nova": 501145}
+GURU_LOCATIONS = {"zurich": 57016, "costa nova": 501145}
 
 # TODO:
 # headless
-# rename this module
 # check that model is in GURU models; error handling if page not fully loaded yet
 # plot comparison of different models
 # query actual values from meteoswiss -> download csv table
@@ -52,12 +52,7 @@ GURU_LOCATIONS = {"Zurich": 57016, "Costa Nova": 501145}
 
 
 class WindInfo:
-    def __init__(self, location="Zurich", headless=True):
-
-        if location in GURU_LOCATIONS.keys():
-            self.location = location
-        else:
-            raise ValueError(f"Location {location} is unknown.")
+    def __init__(self, headless: bool = True):
 
         try:
             driver = webdriver.Edge()
@@ -69,9 +64,24 @@ class WindInfo:
             driver = webdriver.Edge()
         driver.implicitly_wait(10)
 
-        self.driver = driver
-        self.forecast = dict()
-        self.soup = dict()
+        self._driver = driver
+        self._forecast = defaultdict(lambda: dict())
+        self._soups = dict()
+
+    @property
+    def forecast(self, location=None, model=None):
+
+        if location is None:
+            # get the first location
+            location = list(self._forecast.keys())[0]
+        df = self._forecast[location]
+
+        if model is None:
+            # get the first model
+            model = df.Model.unique()[0]
+        df = df.loc[df.Model == model, df.columns != "Model"]
+
+        return df
 
     def _pathSetup(self):
         if len(list(pathlib.Path.cwd().joinpath("driver").glob("*WebDriver*"))) == 1:
@@ -82,24 +92,21 @@ class WindInfo:
         os.environ["PATH"] += r";" + str(driverPath)
 
     # TODO: have dictionary of favorite locations so can use name only
-    def _getSoup(self):
+    def _getGuruSoup(self, location):
 
-        location = self.location
         id = GURU_LOCATIONS[location]
 
         url = GURU_URI + str(id)
-        self.driver.get(url)
+        self._driver.get(url)
 
         element_present = EC.presence_of_element_located((By.ID, "tabid_0_0_dates"))
-        WebDriverWait(self.driver, 20).until(element_present)
+        WebDriverWait(self._driver, 20).until(element_present)
 
-        self.soup = {location: bs(self.driver.page_source)}
+        self._soups.update({location: {"guru": bs(self._driver.page_source)}})
 
-    def _getTabId(self, model):
-        if self.location not in self.soup.keys():
-            self._getSoup()
+    def _getGuruTabId(self, soup, model):
 
-        legends = self.soup[self.location].find_all("div", {"class": "nadlegend"})
+        legends = soup.find_all("div", {"class": "nadlegend"})
 
         legendIndex = [
             i for i, leg in enumerate(legends) if bool(re.search(model, leg.text))
@@ -107,13 +114,15 @@ class WindInfo:
 
         return legends[legendIndex].parent.parent.attrs["data-id"]
 
-    def _parseSoup(self, model="WG"):
+    def _parseGuruSoup(self, location, model):
 
-        if self.location not in self.soup.keys():
-            self._getSoup()
+        if (location not in self._soups.keys()) or (
+            "guru" not in self._soups[location].keys()
+        ):
+            self._getGuruSoup(location)
 
-        soup = self.soup[self.location]
-        tabid = self._getTabId(model)
+        soup = self._soups[location]["guru"]
+        tabid = self._getGuruTabId(soup, model)
 
         dates = soup.find_all("tr", id=f"{tabid}_0_dates")[0]
         today = dt.today()
@@ -168,4 +177,17 @@ class WindInfo:
         )
         df = df.rename(columns=dict(zip(GURU_INFO.values(), GURU_INFO.keys())))
 
-        self.forecast[self.location] = df
+        df["Model"] = model
+        df["Source"] = "Windguru"
+
+        self._forecast[location] = df
+
+    def getForecast(self, location="zurich", model="WG"):
+
+        location = location.lower()
+
+        if location not in [loc.lower() for loc in GURU_LOCATIONS.keys()]:
+            raise ValueError(f"Location {location} is unknown.")
+
+        if model in GURU_MODELS:
+            self._parseGuruSoup(location, model)
