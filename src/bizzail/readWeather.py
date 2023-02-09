@@ -11,6 +11,7 @@ from datetime import datetime as dt
 from collections import defaultdict
 import pathlib
 import re
+import requests
 
 from typing import Union
 
@@ -181,6 +182,22 @@ class WindInfo:
         df["Source"] = "Windguru"
 
         self._forecast[location] = df
+
+    def _getZurich(
+        self, station="mythenquai", startDate=None, endDate=None, limit=500, offset=0
+    ):
+
+        params = ["sort=timestamp_cet%20desc"] + [
+            f"{x}={eval(x)}"
+            for x in ["startDate", "endDate", "limit", "offset"]
+            if eval(x) is not None
+        ]
+
+        queryStr = (
+            f"https://tecdottir.herokuapp.com/measurements/{station}?{'&'.join(params)}"
+        )
+
+        requests.get(queryStr)
 
     def getForecast(self, location="zurich", model="WG"):
 
