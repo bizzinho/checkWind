@@ -40,11 +40,15 @@ GURU_MODELS = (
 GURU_LOCATIONS = {"Zurich": 57016, "Costa Nova": 501145}
 
 # TODO:
-# extract actuals (historic?)
+# headless
+# rename this module
 # check that model is in GURU models; error handling if page not fully loaded yet
 # plot comparison of different models
-# query actual values from meteoswiss
-# headless
+# query actual values from meteoswiss -> download csv table
+# Swiss Meteo stations in Fluntern, Waedenswil, and Zueri Affoltern
+# -> can historic data be extracted?
+# City zurich also has two weather stations -> can export also historic as csv; someone made an api as well
+# Extract historic wind predictions from different models in Guru? possible?
 
 
 class WindInfo:

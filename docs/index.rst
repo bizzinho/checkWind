@@ -1,8 +1,8 @@
 =========
-checkWind
+bizzail
 =========
 
-This is the documentation of **checkWind**.
+This is the documentation of **bizzail**.
 
 .. note::
 

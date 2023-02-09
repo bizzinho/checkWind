@@ -1,27 +1,27 @@
 .. These are examples of badges you might want to add to your README:
    please update the URLs accordingly
 
-    .. image:: https://api.cirrus-ci.com/github/<USER>/checkWind.svg?branch=main
+    .. image:: https://api.cirrus-ci.com/github/<USER>/bizzail.svg?branch=main
         :alt: Built Status
-        :target: https://cirrus-ci.com/github/<USER>/checkWind
-    .. image:: https://readthedocs.org/projects/checkWind/badge/?version=latest
+        :target: https://cirrus-ci.com/github/<USER>/bizzail
+    .. image:: https://readthedocs.org/projects/bizzail/badge/?version=latest
         :alt: ReadTheDocs
-        :target: https://checkWind.readthedocs.io/en/stable/
-    .. image:: https://img.shields.io/coveralls/github/<USER>/checkWind/main.svg
+        :target: https://bizzail.readthedocs.io/en/stable/
+    .. image:: https://img.shields.io/coveralls/github/<USER>/bizzail/main.svg
         :alt: Coveralls
-        :target: https://coveralls.io/r/<USER>/checkWind
-    .. image:: https://img.shields.io/pypi/v/checkWind.svg
+        :target: https://coveralls.io/r/<USER>/bizzail
+    .. image:: https://img.shields.io/pypi/v/bizzail.svg
         :alt: PyPI-Server
-        :target: https://pypi.org/project/checkWind/
-    .. image:: https://img.shields.io/conda/vn/conda-forge/checkWind.svg
+        :target: https://pypi.org/project/bizzail/
+    .. image:: https://img.shields.io/conda/vn/conda-forge/bizzail.svg
         :alt: Conda-Forge
-        :target: https://anaconda.org/conda-forge/checkWind
-    .. image:: https://pepy.tech/badge/checkWind/month
+        :target: https://anaconda.org/conda-forge/bizzail
+    .. image:: https://pepy.tech/badge/bizzail/month
         :alt: Monthly Downloads
-        :target: https://pepy.tech/project/checkWind
+        :target: https://pepy.tech/project/bizzail
     .. image:: https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Twitter
         :alt: Twitter
-        :target: https://twitter.com/checkWind
+        :target: https://twitter.com/bizzail
 
 .. image:: https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold
     :alt: Project generated with PyScaffold
@@ -30,7 +30,7 @@
 |
 
 =========
-checkWind
+bizzail
 =========
 
 
