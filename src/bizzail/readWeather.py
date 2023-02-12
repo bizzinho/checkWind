@@ -9,7 +9,7 @@ import pathlib
 import re
 import requests
 import json
-from .constants import speedUnits
+from .utils import speedUnits
 
 from typing import Union
 
