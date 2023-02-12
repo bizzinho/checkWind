@@ -42,7 +42,6 @@ GURU_MODELS = (
 GURU_LOCATIONS = {"zurich": 57016, "costa nova": 501145}
 
 # TODO:
-# headless
 # check that model is in GURU models; error handling if page not fully loaded yet
 # plot comparison of different models
 # query actual values from meteoswiss -> download csv table
@@ -55,19 +54,39 @@ GURU_LOCATIONS = {"zurich": 57016, "costa nova": 501145}
 class WindInfo:
     def __init__(self, headless: bool = True):
 
-        try:
-            driver = webdriver.Edge()
-        except WebDriverException:
-            self._pathSetup()
-            # if headless:
-            #     opt = webdriver.
-            #     opt.add_argument("--headless")
-            driver = webdriver.Edge()
-        driver.implicitly_wait(10)
-
-        self._driver = driver
+        self._driver = None
         self._forecast = defaultdict(lambda: dict())
         self._soups = dict()
+
+        self._headless = headless
+
+    @property
+    def driver(self):
+
+        if self._driver is None:
+
+            from msedge.selenium_tools import EdgeOptions
+            from msedge.selenium_tools import Edge
+
+            edge_options = EdgeOptions()
+            edge_options.use_chromium = True
+
+            if self._headless:
+                edge_options.add_argument("headless")
+                edge_options.add_argument("disable-gpu")
+            else:
+                edge_options = None
+
+            self._driver = Edge(
+                executable_path=pathlib.Path.cwd().joinpath(
+                    "driver/MicrosoftWebDriver.exe"
+                ),
+                options=edge_options,
+            )
+
+            self._driver.implicitly_wait(10)
+
+        return self._driver
 
     @property
     def forecast(self, location=None, model=None):
@@ -84,26 +103,18 @@ class WindInfo:
 
         return df
 
-    def _pathSetup(self):
-        if len(list(pathlib.Path.cwd().joinpath("driver").glob("*WebDriver*"))) == 1:
-            driverPath = pathlib.Path.cwd().joinpath("driver")
-        # elif len(pathlib.Path().glob("MicrosoftWebDriver")) > 1:
-        # # driverPath = pathlib.Path.cwd().parent.joinpath("driver")
-        # driverPath = pathlib.Path(__file__).parent.joinpath("driver")
-        os.environ["PATH"] += r";" + str(driverPath)
-
     # TODO: have dictionary of favorite locations so can use name only
     def _getGuruSoup(self, location):
 
         id = GURU_LOCATIONS[location]
 
         url = GURU_URI + str(id)
-        self._driver.get(url)
+        self.driver.get(url)
 
         element_present = EC.presence_of_element_located((By.ID, "tabid_0_0_dates"))
-        WebDriverWait(self._driver, 20).until(element_present)
+        WebDriverWait(self.driver, 20).until(element_present)
 
-        self._soups.update({location: {"guru": bs(self._driver.page_source)}})
+        self._soups.update({location: {"guru": bs(self.driver.page_source)}})
 
     def _getGuruTabId(self, soup, model):
 
@@ -160,11 +171,18 @@ class WindInfo:
 
                 myData["SMER"] = directions
 
+                # parse the string, get the directions and angles
+                descriptions_angles = [
+                    re.sub(r"(\w{1,3}) \((\d{1,3}[.]?\d{0,2}).*", r"\1 \2", d).split()
+                    for d in directions
+                ]
+
+                # round the angles correctly to the next integer
                 descriptions, angles = zip(
-                    *[
-                        re.sub(r"(\w{1,3}) \((\d{1,3})[.]?.*", r"\1 \2", d).split()
-                        for d in directions
-                    ]
+                    *map(
+                        lambda x: (x[0], round(float(x[1]))),
+                        descriptions_angles,
+                    )
                 )
 
                 myData["Wind direction (description)"] = descriptions
