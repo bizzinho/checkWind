@@ -1,8 +1,4 @@
-from msilib.schema import Error
 from bs4 import BeautifulSoup as bs
-import os
-from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -13,7 +9,7 @@ import pathlib
 import re
 import requests
 import json
-from .constants import windUnits
+from .constants import speedUnits
 
 from typing import Union
 
@@ -245,9 +241,9 @@ class WindInfo:
 
     @classmethod
     def unitConverter(cls, value, inputUnit, outputUnit):
-        if inputUnit in windUnits["to"].keys():
-            value_kn = windUnits["to"][inputUnit](value)
+        if inputUnit in speedUnits["to"].keys():
+            value_kn = speedUnits["to"][inputUnit](value)
 
-            value_output = windUnits["from"][outputUnit](value_kn)
+            value_output = speedUnits["from"][outputUnit](value_kn)
 
         return value_output
