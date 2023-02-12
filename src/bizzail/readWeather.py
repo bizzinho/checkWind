@@ -12,9 +12,12 @@ from collections import defaultdict
 import pathlib
 import re
 import requests
+import json
+from .constants import windUnits
 
 from typing import Union
 
+ZURICH_API = "https://tecdottir.herokuapp.com/measurements/"
 GURU_URI = "https://www.windguru.cz/"
 GURU_INFO = {
     "Wind speed [kn]": "WINDSPD",
@@ -202,20 +205,33 @@ class WindInfo:
         self._forecast[location] = df
 
     def _getZurich(
-        self, station="mythenquai", startDate=None, endDate=None, limit=500, offset=0
+        self,
+        station="mythenquai",
+        startDate=None,
+        endDate=None,
+        limit=500,
+        offset=0,
+        api=True,
     ):
 
-        params = ["sort=timestamp_cet%20desc"] + [
-            f"{x}={eval(x)}"
-            for x in ["startDate", "endDate", "limit", "offset"]
-            if eval(x) is not None
-        ]
+        # interestingly, the below fails in a list comprehension
+        params = []
+        for x in ["startDate", "endDate", "limit", "offset"]:
+            if eval(x) is not None:
+                params.append(f"{x}={eval(x)}")
 
-        queryStr = (
-            f"https://tecdottir.herokuapp.com/measurements/{station}?{'&'.join(params)}"
-        )
+        params = ["sort=timestamp_cet%20desc"] + params
 
-        requests.get(queryStr)
+        queryStr = f"{ZURICH_API}{station}?{'&'.join(params)}"
+
+        return json.loads(requests.get(queryStr).content)["result"]
+
+    def _parseZurichApi(self, response):
+        df = pd.DataFrame([el["values"] for el in response])
+        df = df.applymap(lambda x: x["value"])
+
+        # TODO, store the same info as we do for forecasts
+        pd.to_datetime(df["timestamp_cet"]).dt.tz_localize(None)
 
     def getForecast(self, location="zurich", model="WG"):
 
@@ -226,3 +242,12 @@ class WindInfo:
 
         if model in GURU_MODELS:
             self._parseGuruSoup(location, model)
+
+    @classmethod
+    def unitConverter(cls, value, inputUnit, outputUnit):
+        if inputUnit in windUnits["to"].keys():
+            value_kn = windUnits["to"][inputUnit](value)
+
+            value_output = windUnits["from"][outputUnit](value_kn)
+
+        return value_output
