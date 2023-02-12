@@ -23,6 +23,15 @@ GURU_INFO = {
     "Precipitation [mm/h]": "APCP1s",
 }
 
+ZH_INFO = {
+    "Timestamp": "timestamp_cet",
+    "Wind speed [kn]": "wind_speed_avg_10min_kn",
+    "Wind gusts [kn]": "wind_gust_max_10min_kn",
+    "Wind direction (angle)": "wind_direction",
+    "Temperature [C]": "air_temperature",
+    "Precipitation [mm/h]": "precipitation",
+}
+
 NUMERIC_INFO = ["WINDSPD", "GUST", "TMP", "APCP1s", "Wind direction (angle)"]
 
 GURU_MODELS = (
@@ -54,7 +63,8 @@ class WindInfo:
     def __init__(self, headless: bool = True):
 
         self._driver = None
-        self._forecast = defaultdict(lambda: dict())
+        self._forecast = defaultdict(lambda: pd.DataFrame)
+        self._actuals = defaultdict(lambda: pd.DataFrame)
         self._soups = dict()
 
         self._headless = headless
@@ -113,7 +123,9 @@ class WindInfo:
         element_present = EC.presence_of_element_located((By.ID, "tabid_0_0_dates"))
         WebDriverWait(self.driver, 20).until(element_present)
 
-        self._soups.update({location: {"guru": bs(self.driver.page_source)}})
+        self._soups.update(
+            {location: {"guru": bs(self.driver.page_source, features="lxml")}}
+        )
 
     def _getGuruTabId(self, soup, model):
 
@@ -148,6 +160,7 @@ class WindInfo:
         firstDate = dt(today.year, today.month, int(forecastDates[0][1]))
         lastDate = firstDate.day
         timestamps = []
+        # TODO this doesn't look right
         for day in forecastDates:
             if day[1] >= lastDate:
                 month = today.month
@@ -200,14 +213,13 @@ class WindInfo:
 
         self._forecast[location] = df
 
-    def _getZurich(
+    def _getZurichApi(
         self,
         station="mythenquai",
         startDate=None,
         endDate=None,
         limit=500,
         offset=0,
-        api=True,
     ):
 
         # interestingly, the below fails in a list comprehension
@@ -226,8 +238,25 @@ class WindInfo:
         df = pd.DataFrame([el["values"] for el in response])
         df = df.applymap(lambda x: x["value"])
 
+        df["timestamp_cet"] = pd.to_datetime(df["timestamp_cet"]).dt.tz_localize(None)
+
+        # convert wind speeds to knots
+        df.loc[["wind_speed_avg_10min_kn", "wind_gust_max_10min_kn"]] = df.loc[
+            :, ["wind_speed_avg_10min", "wind_gust_max_10min"]
+        ].apply(lambda x: self.unitConverter(x, "ms", "kn"))
+
+        self._actuals["zurich"] = df
+
         # TODO, store the same info as we do for forecasts
-        pd.to_datetime(df["timestamp_cet"]).dt.tz_localize(None)
+
+    def _getZurich(self, station="mythenquai", startDate=None, endDate=None, api=True):
+        if api:
+            apiResponse = self._getZurichApi(
+                station=station, startDate=startDate, endDate=endDate
+            )
+            self._parseZurichApi(apiResponse)
+        else:
+            raise NotImplementedError("Can only query ZH weather actuals via API.")
 
     def getForecast(self, location="zurich", model="WG"):
 
