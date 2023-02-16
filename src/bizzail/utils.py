@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def beaufortConversion(speed_kn, reverse=False):
+def knotsToBeaufort(speed_kn, reverse=False):
 
     limits = [0, 3, 6, 10, 16, 21, 27, 33, 40, 47, 55, 63]
 
@@ -49,12 +49,19 @@ speedUnits = {
         kn=lambda x: x,
         ms=lambda x: x * 0.514,
         kph=lambda x: x * 1.852,
-        bf=beaufortConversion,
+        bf=knotsToBeaufort,
     ),
     "to": dict(
         kn=lambda x: x,
         ms=lambda x: x / 0.514,
         kph=lambda x: x / 1.852,
-        bf=beaufortConversion,
+        bf=lambda x: knotsToBeaufort(x, reverse=True),
+    ),
+}
+
+angleUnits = {
+    "from": dict(degrees=lambda x: x, direction=angleToDirection),
+    "to": dict(
+        degrees=lambda x: x, direction=lambda x: angleToDirection(x, reverse=True)
     ),
 }
